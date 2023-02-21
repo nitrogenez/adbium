@@ -45,7 +45,7 @@ This software is licensed under **GNU Affero General Public License v3-or-later*
 
 
 [Latest Version]: https://img.shields.io/crates/v/adbium.svg
-[crates.io]: https://crates.io/crates/libc
+[crates.io]: https://crates.io/crates/adbium
 [Documentation]: https://docs.rs/adbium/badge.svg
 [docs.rs]: https://docs.rs/adbium
 [License]: https://img.shields.io/crates/l/adbium.svg
