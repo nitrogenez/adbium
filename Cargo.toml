@@ -3,9 +3,7 @@ name = "adbium"
 version = "0.1.0"
 edition = "2021"
 authors = ["nitrogenez", "Rikonardo"]
-keywords = [
-    "adb", "android", "nitrogenez", "android-tools", "android-tool", "tool"
-]
+keywords = ["adb", "android", "nitrogenez", "android-tools", "android-tool"]
 
 license = "AGPL-3.0-or-later"
 license-file = "LICENSE.md"
