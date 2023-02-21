@@ -3,6 +3,10 @@
     <p><b>ADBIUM</b></p>
 </h1>
 
++ [![Latest Version]][crates.io] [![Documentation]][docs.rs]
++ ![License]
+
+
 > **NOTICE**  
 > ADBIUM is now in earliest stage of development, because I'm still learning Rust after many years with C/C++. I'm not giving you a guarantee that the library will work properly, so I still highly recommend you to either use other project or help in development by contributing.
 
@@ -38,3 +42,10 @@ Don't worry, Cargo will do you a favor and install dependency all by itself.
 
 ## **License**
 This software is licensed under **GNU Affero General Public License v3-or-later**
+
+
+[Latest Version]: https://img.shields.io/crates/v/adbium.svg
+[crates.io]: https://crates.io/crates/libc
+[Documentation]: https://docs.rs/adbium/badge.svg
+[docs.rs]: https://docs.rs/adbium
+[License]: https://img.shields.io/crates/l/adbium.svg
