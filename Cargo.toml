@@ -7,7 +7,7 @@ keywords = ["adb", "android", "nitrogenez", "android-tools", "android-tool"]
 
 description = "Client library for adb"
 
-license = "AGPL-3.0-or-later"
+license = "LGPL-3.0-or-later"
 license-file = "LICENSE.md"
 readme = "README.md"
 
