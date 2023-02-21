@@ -13,6 +13,7 @@ My goal is to make an easy-to-use library that will handle complicated server-si
 
 **ADBIUM** is partially-based on [mozdevice](https://docs.rs/crate/mozdevice/latest), grabbing pieces of code from there. Not a big deal I think.
 
+**Star it, if you like it ;)**
 
 ## **How to install**
 + **Add the following into your Cargo.toml**:

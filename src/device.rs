@@ -30,7 +30,7 @@ impl AdbDevice {
             run_as_pkg: None,
 
             su_0_cmd: false,
-            su_c_cmd: false,
+            su_c_cmd: false
         };
 
         // Check root

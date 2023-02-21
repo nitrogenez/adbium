@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, net::{Ipv4Addr, TcpStream}};
+use std::{collections::BTreeMap, net::{Ipv4Addr, TcpStream}, time::Duration};
 
 use crate::{device_info::*, server::{AdbServer, AdbServerError}};
 // use crate::device::*;
@@ -18,4 +18,17 @@ fn test_device_info_parsing() {
 
 
     assert_eq!(devinfo, Some(AdbDeviceInfo::new(testserial.to_owned(), testinfo.to_owned())));
+}
+
+
+#[test]
+fn test_connection() {
+    let serv = AdbServer::new(Ipv4Addr::from([127,0,0,1]), 5037, Duration::from_secs(2), Duration::from_secs(2)).expect("Couldn't create server");
+    let conn = serv.connect().expect("Failed to estabilish connection");
+}
+
+#[test]
+fn test_device_search() {
+    let serv = AdbServer::new(Ipv4Addr::from([127,0,0,1]), 5037, Duration::from_secs(2), Duration::from_secs(2)).expect("Couldn't create server");
+    let dev = serv.get_active_device().expect("Couldn't find device");
 }

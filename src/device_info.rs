@@ -37,4 +37,12 @@ impl AdbDeviceInfo {
             None
         }
     }
+
+    pub fn get_serial_number(&self) -> String {
+        self.serial_number.to_owned()
+    }
+
+    pub fn get_info(&self) -> BTreeMap<String, String> {
+        self.info.to_owned()
+    }
 }

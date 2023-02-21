@@ -12,12 +12,17 @@ use std::io::Read;
 use std::io::Write;
 
 use crate::adb::SyncCmd;
+use crate::device::AdbDevice;
+use crate::device_info::AdbDeviceInfo;
 
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AdbServer {
     host: Ipv4Addr,
     port: u32,
+
+    read_timeout: Option<Duration>,
+    write_timeout: Option<Duration>
 }
 
 
@@ -56,14 +61,26 @@ impl From<ParseIntError> for AdbServerError {
 
 impl Default for AdbServer {
     fn default() -> Self {
-        AdbServer { host: Ipv4Addr::from([127,0,0,1]), port: 5037 }
+        AdbServer {
+            host: Ipv4Addr::from([127,0,0,1]),
+            port: 5037,
+
+            read_timeout: Some(Duration::from_secs(2)),
+            write_timeout: Some(Duration::from_secs(2))
+        }
     }
 }
 
 
 impl AdbServer {
-    pub fn new(host: Ipv4Addr, port: u32) -> AdbServerResult {
-        Ok(AdbServer { host, port })
+    pub fn new(host: Ipv4Addr, port: u32, read_timeout: Duration, write_timeout: Duration) -> AdbServerResult {
+        Ok(AdbServer {
+            host,
+            port,
+
+            read_timeout: Some(read_timeout),
+            write_timeout: Some(write_timeout),
+        })
     }
 
     pub fn encode_msg(msg: &str) -> Result<String, TryFromIntError> {
@@ -73,10 +90,13 @@ impl AdbServer {
     }
 
     pub fn connect(&self) -> Result<TcpStream, std::io::Error> {
-        let adb_stream = TcpStream::connect(format!("{:?}{:?}", self.host.to_string().to_owned(), self.port.to_owned()))?;
+        let addr_str: String = self.host.to_string().to_owned();
+        let addr = format!("{}:{}", addr_str, self.port.to_owned());
 
-        adb_stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-        adb_stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+        let adb_stream = TcpStream::connect(addr)?;
+
+        adb_stream.set_read_timeout(self.read_timeout)?;
+        adb_stream.set_write_timeout(self.write_timeout)?;
 
         Ok(adb_stream)
     }
@@ -100,7 +120,7 @@ impl AdbServer {
 
             stream.read_exact(&mut bytes[0..n])?;
 
-            let message = std::str::from_utf8(&bytes[0..n]).map(|s| format!("AdbError: {:?}", s))?;
+            let message = std::str::from_utf8(&bytes[0..n]).map(|s| format!("AdbError: {}", s))?;
             return Err(AdbServerError::AdbError(message))
         }
 
@@ -109,11 +129,33 @@ impl AdbServer {
         if has_output {
             stream.read_to_end(&mut response)?;
 
+            if response.starts_with(SyncCmd::Okay.code()) {
+                response = response.split_off(4);
+            }
+
             if response.starts_with(SyncCmd::Fail.code()) {
                 response = response.split_off(8);
 
-                let message = std::str::from_utf8(&response).map(|s| format!("AdbError: {:?}", s))?;
+                let message = std::str::from_utf8(&response).map(|s| format!("AdbError: {}", s))?;
                 return Err(AdbServerError::AdbError(message))
+            }
+
+            if has_len {
+                if response.len() >= 4 {
+                    let message = response.split_off(4);
+                    let message_slice: &mut &[u8] = &mut &*response;
+
+                    let n = AdbServer::read_length(message_slice)?;
+
+                    if n != message.len() {
+                        println!("warning: unknown adb response (response length: {}, message length: {})", n, message.len());
+                    }
+
+                    return Ok(message);
+                }
+                else {
+                    return Err(AdbServerError::AdbError(format!("adb server responded but didn't send any hex string length: {:?}", std::str::from_utf8(&response)?)))
+                }
             }
         }
         Ok(response)
@@ -128,5 +170,21 @@ impl AdbServer {
         let response = std::str::from_utf8(&bytes)?;
 
         Ok(response.to_owned())
+    }
+
+    pub fn get_devices_info<D: FromIterator<AdbDeviceInfo>>(&self) -> Result<D, AdbServerError> {
+        let response: String = self.exec("devices -l", true, true)?;
+        let device_infos: D = response.lines().filter_map(AdbDeviceInfo::parse_info).collect();
+
+        Ok(device_infos)
+    }
+
+    pub fn get_active_device(&self) -> Result<AdbDevice, AdbServerError> {
+        let device_infos: Vec<AdbDeviceInfo> = self.get_devices_info()?;
+
+        let active_info: &AdbDeviceInfo = device_infos.get(0).to_owned().unwrap().to_owned();
+        let active: AdbDevice = AdbDevice::new(active_info.get_serial_number().to_owned(), self.to_owned())?;
+
+        Ok(active)
     }
 }
