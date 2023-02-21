@@ -32,3 +32,10 @@ fn test_device_search() {
     let serv = AdbServer::new(Ipv4Addr::from([127,0,0,1]), 5037, Duration::from_secs(2), Duration::from_secs(2)).expect("Couldn't create server");
     let dev = serv.get_active_device().expect("Couldn't find device");
 }
+
+#[test]
+fn test_server_io() {
+    let serv = AdbServer::new(Ipv4Addr::from([127,0,0,1]), 5037, Duration::from_secs(2), Duration::from_secs(2)).expect("Failed to estabilish connection");
+
+    serv.exec("devices", true, true).expect("Failed to test server io");
+}

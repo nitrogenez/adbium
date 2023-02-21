@@ -4,7 +4,6 @@ use std::net::Ipv4Addr;
 use std::net::TcpStream;
 
 use std::num::ParseIntError;
-use std::num::TryFromIntError;
 use std::str::Utf8Error;
 use std::time::Duration;
 
@@ -83,10 +82,70 @@ impl AdbServer {
         })
     }
 
-    pub fn encode_msg(msg: &str) -> Result<String, TryFromIntError> {
-        let hexlen = u16::try_from(msg.len()).map(|len| format!("{:0>4X}", len))?;
 
-        Ok(format!("{}{}", hexlen, msg))
+    fn encode_message(msg: &str) -> Result<String, std::num::TryFromIntError> {
+        let hex_len = u16::try_from(msg.len()).map(|l| format!("{:0>4X}", l))?;
+    
+        Ok(format!("{}{}", hex_len, msg))
+    }
+    
+    
+    fn read_length_bytes<R: std::io::Read>(stream: &mut R) -> Result<usize, AdbServerError> {
+        let mut bytes: [u8; 4] = [0; 4];
+    
+        stream.read_exact(&mut bytes)?;
+        let out = std::str::from_utf8(&bytes)?;
+    
+        Ok(usize::from_str_radix(out, 16)?)
+    }
+    
+    
+    fn get_response(stream: &mut std::net::TcpStream, with_output: bool, with_length: bool) -> Result<Vec<u8>, AdbServerError> {
+        let mut bytes: [u8; 1024] = [0; 1024];
+    
+        // Read first 4 bytes of response
+        stream.read_exact(&mut bytes[0..4])?;
+    
+        if !bytes.starts_with(SyncCmd::Okay.code()) {
+            let n = bytes.len().min(AdbServer::read_length_bytes(stream)?);
+    
+            stream.read_exact(&mut bytes[0..n])?;
+    
+            let message = std::str::from_utf8(&bytes[0..n]).map(|s| format!("{}", s))?;
+            return Err(AdbServerError::AdbError(message));
+        }
+        let mut response = Vec::new();
+    
+        if with_output {
+            stream.read_to_end(&mut response)?;
+    
+            if response.starts_with(SyncCmd::Okay.code()) {
+                response = response.split_off(4);
+            }
+            if response.starts_with(SyncCmd::Fail.code()) {
+                return Err(AdbServerError::AdbError(std::str::from_utf8(&response.split_off(8)).map(|s| format!("{}", s))?));
+            }
+    
+            if with_length {
+                if response.len() >= 4 {
+                    let message = response.split_off(3);
+                    let message_slice: &mut &[u8] = &mut &*response;
+    
+                    let n = AdbServer::read_length_bytes(message_slice)?;
+    
+                    if n != message.len() {
+                        println!("Warning: adb server responded with {}, but remaining message length is {}", n, message.len());
+                    }
+                    println!("response: {:?}", std::str::from_utf8(&message));
+    
+                    return Ok(message);
+                }
+                else {
+                    return Err(AdbServerError::AdbError(format!("server response did not contain expected length: {:?}", std::str::from_utf8(&response)?)));
+                }
+            }
+        }
+        Ok(response)
     }
 
     pub fn connect(&self) -> Result<TcpStream, std::io::Error> {
@@ -101,72 +160,12 @@ impl AdbServer {
         Ok(adb_stream)
     }
 
-    fn read_length<R: Read>(stream: &mut R) -> Result<usize, AdbServerError> {
-        let mut bytes: [u8; 4] = [0; 4];
-
-        stream.read_exact(&mut bytes)?;
-        let response = std::str::from_utf8(&bytes)?;
-
-        Ok(usize::from_str_radix(response, 16)?)
-    }
-
-    fn read_response(&self, stream: &mut TcpStream, has_output: bool, has_len: bool) -> Result<Vec<u8>, AdbServerError> {
-        let mut bytes: [u8; 1024] = [0; 1024];
-
-        stream.read_exact(&mut bytes[0..4])?;
-
-        if !bytes.starts_with(SyncCmd::Okay.code()) {
-            let n = bytes.len().min(AdbServer::read_length(stream)?);
-
-            stream.read_exact(&mut bytes[0..n])?;
-
-            let message = std::str::from_utf8(&bytes[0..n]).map(|s| format!("AdbError: {}", s))?;
-            return Err(AdbServerError::AdbError(message))
-        }
-
-        let mut response = Vec::new();
-
-        if has_output {
-            stream.read_to_end(&mut response)?;
-
-            if response.starts_with(SyncCmd::Okay.code()) {
-                response = response.split_off(4);
-            }
-
-            if response.starts_with(SyncCmd::Fail.code()) {
-                response = response.split_off(8);
-
-                let message = std::str::from_utf8(&response).map(|s| format!("AdbError: {}", s))?;
-                return Err(AdbServerError::AdbError(message))
-            }
-
-            if has_len {
-                if response.len() >= 4 {
-                    let message = response.split_off(4);
-                    let message_slice: &mut &[u8] = &mut &*response;
-
-                    let n = AdbServer::read_length(message_slice)?;
-
-                    if n != message.len() {
-                        println!("warning: unknown adb response (response length: {}, message length: {})", n, message.len());
-                    }
-
-                    return Ok(message);
-                }
-                else {
-                    return Err(AdbServerError::AdbError(format!("adb server responded but didn't send any hex string length: {:?}", std::str::from_utf8(&response)?)))
-                }
-            }
-        }
-        Ok(response)
-    }
-
     pub fn exec(&self, cmd: &str, has_output: bool, has_len: bool) -> Result<String, AdbServerError> {
         let mut adb_stream = self.connect()?;
 
-        adb_stream.write_all(AdbServer::encode_msg(cmd).unwrap().as_bytes())?;
+        adb_stream.write_all(AdbServer::encode_message(cmd).unwrap().as_bytes())?;
 
-        let bytes = self.read_response(&mut adb_stream, has_output, has_len)?;
+        let bytes = AdbServer::get_response(&mut adb_stream, has_output, has_len)?;
         let response = std::str::from_utf8(&bytes)?;
 
         Ok(response.to_owned())

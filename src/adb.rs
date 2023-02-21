@@ -1,3 +1,6 @@
+use std::{io::Read, error::Error};
+
+
 #[derive(Debug, PartialEq)]
 pub enum SyncCmd {
     Data,

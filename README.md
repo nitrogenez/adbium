@@ -25,7 +25,7 @@ My goal is to make an easy-to-use library that will handle complicated server-si
     or
   - ```toml
     [dependencies.adbium]
-    version = "0.1.0"
+    version = "0.1.1"
     ```
 
 Don't worry, Cargo will do you a favor and install dependency all by itself.
