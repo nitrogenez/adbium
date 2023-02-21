@@ -21,6 +21,11 @@ My goal is to make an easy-to-use library that will handle complicated server-si
     git = "https://github.com/nitrogenez/adbium"
     branch = "main"
     ```
+    or
+  - ```toml
+    [dependencies.adbium]
+    version = "0.1.0"
+    ```
 
 Don't worry, Cargo will do you a favor and install dependency all by itself.
 
@@ -29,3 +34,6 @@ Don't worry, Cargo will do you a favor and install dependency all by itself.
 ## **Authors**
 + [nitrogenez](https://github.com/nitrogenez) - Lead developer
 + [Rikonardo](https://github.com/Rikonardo) - Sub developer
+
+## **License**
+This software is licensed under **GNU Affero General Public License v3-or-later**
